@@ -1,8 +1,8 @@
 # (TODO: your game's title)
 
-Author: (TODO: your name)
+Author: Pengtao Ni
 
-Design: (TODO: In two sentences or fewer, describe what is new and interesting about your game.)
+Design: The paddle is controlled by up and down keys, which are being swapped every few seconds.
 
 Screen Shot:
 
@@ -10,6 +10,7 @@ Screen Shot:
 
 How To Play:
 
-(TODO: describe the controls and (if needed) goals/strategy.)
+When the arrows in the middle are green, the up key moves the paddle up and the down key moves the paddle down.
+When the arrows in the middle are red, the up key moves the paddle down and the down key moves the paddle up.
 
 This game was built with [NEST](NEST.md).
