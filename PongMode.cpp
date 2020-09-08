@@ -119,13 +119,22 @@ PongMode::~PongMode() {
 
 bool PongMode::handle_event(SDL_Event const &evt, glm::uvec2 const &window_size) {
 
-	if (evt.type == SDL_MOUSEMOTION) {
-		//convert mouse from window pixels (top-left origin, +y is down) to clip space ([-1,1]x[-1,1], +y is up):
-		glm::vec2 clip_mouse = glm::vec2(
-			(evt.motion.x + 0.5f) / window_size.x * 2.0f - 1.0f,
-			(evt.motion.y + 0.5f) / window_size.y *-2.0f + 1.0f
-		);
-		left_paddle.y = (clip_to_court * glm::vec3(clip_mouse, 1.0f)).y;
+	//if (evt.type == SDL_MOUSEMOTION) {
+	//	//convert mouse from window pixels (top-left origin, +y is down) to clip space ([-1,1]x[-1,1], +y is up):
+	//	glm::vec2 clip_mouse = glm::vec2(
+	//		(evt.motion.x + 0.5f) / window_size.x * 2.0f - 1.0f,
+	//		(evt.motion.y + 0.5f) / window_size.y *-2.0f + 1.0f
+	//	);
+	//	left_paddle.y = (clip_to_court * glm::vec3(clip_mouse, 1.0f)).y;
+	//}
+
+	if (evt.type == SDL_KEYDOWN) {
+		if (evt.key.keysym.sym == SDLK_UP) up = true;
+		if (evt.key.keysym.sym == SDLK_DOWN) down = true;
+	}
+	if (evt.type == SDL_KEYUP) {
+		if (evt.key.keysym.sym == SDLK_UP) up = false;
+		if (evt.key.keysym.sym == SDLK_DOWN) down = false;
 	}
 
 	return false;
@@ -135,7 +144,25 @@ void PongMode::update(float elapsed) {
 
 	static std::mt19937 mt; //mersenne twister pseudo-random number generator
 
+	//----- swap up and down every few seconds -----
+
+	time += elapsed;
+	if (time > swap_time) {
+		time = 0.0f;
+		swap_time = 10.0f * (float)rand() / (float)RAND_MAX;
+		swap_up_down = !swap_up_down;
+	}
+
 	//----- paddle update -----
+
+	if (!swap_up_down) {
+		if (up) left_paddle.y += 4.0f * elapsed;
+		if (down) left_paddle.y -= 4.0f * elapsed;
+	}
+	else {
+		if (down) left_paddle.y += 4.0f * elapsed;
+		if (up) left_paddle.y -= 4.0f * elapsed;
+	}
 
 	{ //right player ai:
 		ai_offset_update -= elapsed;
@@ -256,6 +283,8 @@ void PongMode::draw(glm::uvec2 const &drawable_size) {
 	const glm::u8vec4 bg_color = HEX_TO_U8VEC4(0x171714ff);
 	const glm::u8vec4 fg_color = HEX_TO_U8VEC4(0xd1bb54ff);
 	const glm::u8vec4 shadow_color = HEX_TO_U8VEC4(0x604d29ff);
+	const glm::u8vec4 red = HEX_TO_U8VEC4(0xcc000080);
+	const glm::u8vec4 green = HEX_TO_U8VEC4(0x33cc0080);
 	const std::vector< glm::u8vec4 > rainbow_colors = {
 		HEX_TO_U8VEC4(0x604d29ff), HEX_TO_U8VEC4(0x624f29fc), HEX_TO_U8VEC4(0x69542df2),
 		HEX_TO_U8VEC4(0x6a552df1), HEX_TO_U8VEC4(0x6b562ef0), HEX_TO_U8VEC4(0x6b562ef0),
@@ -278,7 +307,7 @@ void PongMode::draw(glm::uvec2 const &drawable_size) {
 	//vertices will be accumulated into this list and then uploaded+drawn at the end of this function:
 	std::vector< Vertex > vertices;
 
-	//inline helper function for rectangle drawing:
+	//inline helper function for rectangle and triangle drawing:
 	auto draw_rectangle = [&vertices](glm::vec2 const &center, glm::vec2 const &radius, glm::u8vec4 const &color) {
 		//draw rectangle as two CCW-oriented triangles:
 		vertices.emplace_back(glm::vec3(center.x-radius.x, center.y-radius.y, 0.0f), color, glm::vec2(0.5f, 0.5f));
@@ -288,6 +317,11 @@ void PongMode::draw(glm::uvec2 const &drawable_size) {
 		vertices.emplace_back(glm::vec3(center.x-radius.x, center.y-radius.y, 0.0f), color, glm::vec2(0.5f, 0.5f));
 		vertices.emplace_back(glm::vec3(center.x+radius.x, center.y+radius.y, 0.0f), color, glm::vec2(0.5f, 0.5f));
 		vertices.emplace_back(glm::vec3(center.x-radius.x, center.y+radius.y, 0.0f), color, glm::vec2(0.5f, 0.5f));
+	};
+	auto draw_triangle = [&vertices](glm::vec2 const& p1, glm::vec2 const& p2, glm::vec2 const& p3, glm::u8vec4 const& color) {
+		vertices.emplace_back(glm::vec3(p1.x, p1.y, 0.0f), color, glm::vec2(0.5f, 0.5f));
+		vertices.emplace_back(glm::vec3(p2.x, p2.y, 0.0f), color, glm::vec2(0.5f, 0.5f));
+		vertices.emplace_back(glm::vec3(p3.x, p3.y, 0.0f), color, glm::vec2(0.5f, 0.5f));
 	};
 
 	//shadows for everything (except the trail):
@@ -321,6 +355,20 @@ void PongMode::draw(glm::uvec2 const &drawable_size) {
 			//draw:
 			draw_rectangle(at, ball_radius, rainbow_colors[i]);
 		}
+	}
+
+	//arrows:
+	if (!swap_up_down) {
+		draw_rectangle(glm::vec2(0.0f, -0.5f), glm::vec2(0.1f, 0.3f), green);
+		draw_rectangle(glm::vec2(0.0f, 0.5f), glm::vec2(0.1f, 0.3f), green);
+		draw_triangle(glm::vec2(-0.2f, -0.8f), glm::vec2(0.2f, -0.8f), glm::vec2(0.0f, -1.0f), green);
+		draw_triangle(glm::vec2(-0.2f, 0.8f), glm::vec2(0.2f, 0.8f), glm::vec2(0.0f, 1.0f), green);
+	}
+	else {
+		draw_rectangle(glm::vec2(0.0f, -0.7f), glm::vec2(0.1f, 0.3f), red);
+		draw_rectangle(glm::vec2(0.0f, 0.7f), glm::vec2(0.1f, 0.3f), red);
+		draw_triangle(glm::vec2(-0.2f, -0.4f), glm::vec2(0.2f, -0.4f), glm::vec2(0.0f, -0.2f), red);
+		draw_triangle(glm::vec2(-0.2f, 0.4f), glm::vec2(0.2f, 0.4f), glm::vec2(0.0f, 0.2f), red);
 	}
 
 	//solid objects:

@@ -39,6 +39,13 @@ struct PongMode : Mode {
 	float ai_offset = 0.0f;
 	float ai_offset_update = 0.0f;
 
+	bool up = false;
+	bool down = false;
+
+	float time = 0.0f;
+	float swap_time = 10.0f * (float)rand() / (float)RAND_MAX;
+	bool swap_up_down = false;
+
 	//----- pretty rainbow trails -----
 
 	float trail_length = 1.3f;
